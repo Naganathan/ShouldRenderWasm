@@ -1,0 +1,123 @@
+﻿@page "/canvas"
+
+@using System.ComponentModel
+@using System.Text.Json;
+@using System.Text.Json.Serialization;
+@using System.Drawing;
+@using ShouldRenderWebAppTest.Pages;
+
+@inherits ComponentBase;
+
+<h3>Canvas</h3>
+    <div id="canvas" @onmousedown="@OnMouseDown" @onmousemove="@OnMouseMove" @onmouseup="@OnMouseUp" style="width: 100%;height: 700px;position:relative;width:100%; height:700px;position:relative;overflow:hidden;background:#ededed">
+        <svg id="canvas_layer" width="@Width" height="@Height" xmlns="http://www.w3.org/2000/svg">
+            <g>
+                <g id="canvas_layer" style="pointer-events: all;" transform="translate(0,0),scale(1)">
+                    <CascadingValue Value="@this">
+                        @ChildContent
+                    </CascadingValue>
+                </g>
+            </g>
+        </svg>
+    </div>
+
+@code
+{
+    internal Node draggingNode = null;
+    internal float diagramStartX;
+    internal float diagramStartY;
+    internal bool inAction { get; set; }
+    internal float previousMousePointX { get; set; }
+    internal float previousMousePointY { get; set; }
+
+    [Parameter]
+    public float Width { get; set; }
+
+    [Parameter]
+    public float Height { get; set; }
+
+
+    [Inject]
+    protected IJSRuntime jsRuntime { get; set; }
+
+    [Parameter]
+    [JsonIgnore]
+    public RenderFragment ChildContent { get; set; }
+
+    public List<Node> Nodes = new List<Node>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await base.OnInitializedAsync();
+
+        CalculateDiagramNodeBounds(null);
+    }
+
+    public async void OnMouseDown(MouseEventArgs args)
+    {
+        if (diagramStartX == 0 && diagramStartY == 0)
+        {
+            PointF size = await jsRuntime.InvokeAsync<PointF>("getDiagramSize").ConfigureAwait(true);
+            diagramStartX = size.X;
+            diagramStartY = size.Y;
+        }
+        float mousePointX = (float)(args.ClientX - diagramStartX);
+        float mousePointY = (float)(args.ClientY - diagramStartY);
+        for (int i = 0; i < Nodes.Count; i++)
+        {
+            Node Node = Nodes[i];
+            CalculateDiagramNodeBounds(Node);
+            bool isInside = Node.bounds.Contains(mousePointX, mousePointY);
+            Node._ShouldRender = false;
+            if (isInside)
+            {
+                draggingNode = Node;
+                draggingNode._ShouldRender = true;
+                inAction = true;
+                previousMousePointX = mousePointX; previousMousePointY = mousePointY;
+                StateHasChanged();
+                break;
+            }
+        }
+    }
+    public void OnMouseMove(MouseEventArgs args)
+    {
+        if (inAction)
+        {
+            float mousePointX = (float)(args.ClientX - diagramStartX);
+            float mousePointY = (float)(args.ClientY - diagramStartY);
+            float tx = mousePointX - previousMousePointX;
+            float ty = mousePointY - previousMousePointY;
+            this.draggingNode.DragNode(draggingNode, tx, ty);
+            previousMousePointX = mousePointX; previousMousePointY = mousePointY;
+            StateHasChanged();
+        }
+    }
+    public void OnMouseUp(MouseEventArgs args)
+    {
+        float mousePointX = (float)(args.ClientX - diagramStartX);
+        float mousePointY = (float)(args.ClientY - diagramStartY);
+        previousMousePointX = mousePointX; previousMousePointY = mousePointY;
+        if (inAction)
+        {
+            inAction = false;
+            draggingNode._ShouldRender = false;
+            draggingNode = null;
+            StateHasChanged();
+        }
+    }
+    public void CalculateDiagramNodeBounds(Node node)
+    {
+        if (node != null)
+        {
+            node.bounds = new RectangleF() { X = node.X, Y = node.Y, Width = node.Width, Height = node.Height };
+            return;
+        }
+        for (var i = 0; i < this.Nodes.Count; i++)
+        {
+            Node Node = this.Nodes[i];
+            Node.bounds = new RectangleF() { X = Node.X, Y = Node.Y, Width = Node.Width, Height = Node.Height };
+        }
+    }
+}
+

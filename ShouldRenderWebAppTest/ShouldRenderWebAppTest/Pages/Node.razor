@@ -1,0 +1,98 @@
+﻿@using Microsoft.AspNetCore.Components;
+@using System.Drawing;
+
+@inherits ComponentBase;
+
+@{
+    <g id="node_element" xmlns="http://www.w3.org/2000/svg">
+        <rect id="@Id" x="@X" y="@Y" width="@Width" height="@Height" fill="blue" stroke-width="5"></rect>
+    </g>
+}
+
+@code {
+    private List<string> directParamKeys { get; set; } = new List<string>();
+    internal Dictionary<string, object> DirectParameters { get; set; } = new Dictionary<string, object>();
+
+    [CascadingParameter]
+    internal Canvas BaseParent { get; set; }
+    internal RectangleF bounds { get; set; }
+    [Parameter]
+    public string Id
+    {
+        get; set;
+    }
+    private string _id;
+    [Parameter]
+    public float X
+    {
+        get; set;
+    }
+    private float _x;
+    [Parameter]
+    public float Y
+    {
+        get; set;
+    }
+    private float _y;
+    [Parameter]
+    public float Width
+    {
+        get; set;
+    }
+    private float _width;
+    [Parameter]
+    public float Height
+    {
+        get; set;
+    }
+    private float _height;
+
+
+    public void DragNode(Node Node, float tx, float ty)
+    {
+        this._x += tx;
+        this._y += ty;
+    }
+    public bool _ShouldRender = false;
+    protected override bool ShouldRender()
+    {
+        return _ShouldRender;
+    }
+    protected override void OnParametersSet()
+    {
+        base.OnParametersSet();
+        if (this._x != 0 && this.X != this._x)
+            DirectParameters["X"] = this.X = this._x;
+        if (this._y != 0 && this.Y != this._y)
+            DirectParameters["Y"] = this.Y = this._y;
+    }
+    public override Task SetParametersAsync(ParameterView parameters)
+    {
+        parameters.SetParameterProperties(this);
+        if (this.directParamKeys.Count == 0)
+        {
+            foreach (var parameter in parameters)
+            {
+                if (!parameter.Cascading)
+                {
+                    directParamKeys.Add(parameter.Name);
+                }
+            }
+        }
+        return base.SetParametersAsync(parameters);
+    }
+
+    protected override void OnInitialized()
+    {
+        if (BaseParent != null)
+        {
+            (this.BaseParent.Nodes as List<Node>).Add(this);
+            _x = X;
+            _y = Y;
+            _width = Width;
+            _height = Height;
+        }
+        StateHasChanged();
+    }
+}
+

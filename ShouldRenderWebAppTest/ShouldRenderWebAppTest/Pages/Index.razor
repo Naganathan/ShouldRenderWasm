@@ -1,0 +1,15 @@
+﻿@page "/"
+
+<Canvas @ref="@canvas" Width="1500" Height="700">
+    @for (int i = 0; i < 1000; i++)
+    {
+        var id = "Node" + i.ToString();
+        var x = 10 + i * 40;
+        var y = (float)(260 + 290 * Math.Sin(Math.PI * i / 22.5));
+        <Node Id="@id" X="@x" Y="@y" Width="40" Height="40"></Node>
+    }
+</Canvas>
+
+@code{
+    Canvas canvas;
+}
